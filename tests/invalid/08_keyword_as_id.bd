@@ -1,0 +1,4 @@
+program p;
+var while : int;
+main { }
+end

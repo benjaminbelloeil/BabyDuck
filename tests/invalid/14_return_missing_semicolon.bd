@@ -1,0 +1,4 @@
+program r;
+int f() { return 1 }
+main { }
+end

@@ -1,0 +1,9 @@
+program p;
+var x, y : int;
+main {
+  if (x == y) { print("equal"); }
+  if (x <= y) { print("le"); }
+  if (x >= y) { print("ge"); }
+  while (x + 1 >= y * 2) { x = x - 1; }
+}
+end

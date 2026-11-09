@@ -1,0 +1,10 @@
+program p;
+var x : int;
+int g(a : int) { }
+void h() { }
+main {
+  h();
+  g(1);
+  x = g(x) + 1;
+}
+end

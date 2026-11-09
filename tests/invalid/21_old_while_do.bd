@@ -1,0 +1,4 @@
+program p;
+var x : int;
+main { while (x > 0) do { x = x - 1; } }
+end

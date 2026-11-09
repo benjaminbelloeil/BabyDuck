@@ -1,0 +1,15 @@
+program p;
+int f(a : int) {
+  var t, u : int;
+      v : float;
+  t = a;
+  u = t * 2;
+  v = 1.5;
+  print(t, u, v);
+  return u;
+}
+void g() {
+  var k : int;
+}
+main { }
+end

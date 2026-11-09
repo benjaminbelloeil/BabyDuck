@@ -1,0 +1,10 @@
+program p;
+var x, y : int;
+main {
+  if (x > 0) {
+    if (y > 0) { print(1); } else { print(2); }
+  }
+  x = (g(x, 2) + h()) * 3;
+  print(g(x, 1) > 2);
+}
+end
