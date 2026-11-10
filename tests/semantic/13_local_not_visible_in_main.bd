@@ -1,0 +1,7 @@
+program p;
+void f() {
+  var t : int;
+  t = 1;
+}
+main { t = 2; }
+end

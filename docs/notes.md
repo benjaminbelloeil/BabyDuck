@@ -63,6 +63,21 @@ clear which `if` it belongs to (no dangling else). `while` has no `do`.
 so the parser reads the ID first and the next token decides (`:` `,` → declaration,
 `=` `(` → statement). Vars must come before statements.
 
+## Semantics (Entrega 2)
+
+- **Semantic cube** (`semantic_cube.py`): dict `(left, op, right) -> type`. Missing key =
+  error. `int+float -> float`, `int/int -> int`, comparisons -> `bool`,
+  `float = int` ok, `int = float` error. Unary sign has its own small dict.
+- **Function directory** (`symbols.py`): dict `name -> FuncInfo`. The program is one entry
+  too; its table holds the globals.
+- **Variable table**: dict `name -> VarInfo(type, kind, line)`, one per function.
+- **Lookup**: local table first, then global. Not found -> "not declared".
+- **Neuralgic points**: PLY runs a rule's code only when the whole rule is read. To act
+  in the middle (create the function before its params), that part becomes its own rule:
+  `func_header : func_type ID`, `program_header : PROGRAM ID`.
+- **Lists**: `id_list` / `params_list` return Python lists, so the names are added in
+  order when `decl` / `params` reduce.
+
 ## Language at a glance
 
 ```

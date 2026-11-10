@@ -1,0 +1,5 @@
+program p;
+void f() { g(); }
+void g() { }
+main { }
+end

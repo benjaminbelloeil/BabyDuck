@@ -1,0 +1,5 @@
+program p;
+var total : int;
+void add(n : int) { total = total + n; }
+main { total = 0; add(3); print(total); }
+end

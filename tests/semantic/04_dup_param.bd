@@ -1,0 +1,4 @@
+program p;
+void f(a : int, a : float) { }
+main { }
+end

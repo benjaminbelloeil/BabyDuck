@@ -1,0 +1,5 @@
+program p;
+void f() { var t : int; t = 1; }
+void g() { var t : float; t = 1.5; }
+main { f(); g(); }
+end

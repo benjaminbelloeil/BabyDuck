@@ -1,10 +1,12 @@
 """Usage:
     python3 src/main.py <file.bd>            parse a file
     python3 src/main.py <file.bd> --tokens   only print the token stream
+    python3 src/main.py <file.bd> --symbols  also print the function directory
 """
 import sys
 from lexer import tokenize
 from parser import parse
+from symbols import SemanticError
 
 
 def main():
@@ -23,9 +25,11 @@ def main():
             for typ, val, line in tokenize(source):
                 print(f"{line:>4}  {typ:<12} {val!r}")
             return
-        parse(source)
+        directory = parse(source)
         print(f"{path}: OK, program accepted")
-    except SyntaxError as e:
+        if '--symbols' in sys.argv:
+            print(directory.dump())
+    except (SyntaxError, SemanticError) as e:
         print(f"{path}: {e}")
         sys.exit(1)
 

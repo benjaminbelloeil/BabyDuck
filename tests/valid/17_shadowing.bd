@@ -1,0 +1,9 @@
+program p;
+var x : int;
+void f(x : float) {
+  var y : int;
+  y = 1;
+  x = 2.5;
+}
+main { x = 1; f(x); }
+end

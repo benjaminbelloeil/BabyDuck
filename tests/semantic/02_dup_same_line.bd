@@ -1,0 +1,4 @@
+program p;
+var a, b, a : int;
+main { }
+end

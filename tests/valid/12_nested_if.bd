@@ -1,5 +1,7 @@
 program p;
 var x, y : int;
+int g(a : int, b : int) { return a + b; }
+int h() { return 1; }
 main {
   if (x > 0) {
     if (y > 0) { print(1); } else { print(2); }

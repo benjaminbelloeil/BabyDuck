@@ -1,0 +1,5 @@
+program p;
+var x : int;
+void f(a : int, b : int) { }
+main { f(x); }
+end
