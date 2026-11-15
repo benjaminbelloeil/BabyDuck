@@ -1,0 +1,6 @@
+program p01;
+var a, b, c, d, x : int;
+main {
+  x = a + b * c - d;
+}
+end

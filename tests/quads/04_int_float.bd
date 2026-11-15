@@ -1,0 +1,9 @@
+program p04;
+var i : int;
+    f : float;
+main {
+  f = i * 2.5 + 1;
+  f = i / 2;
+  i = i + 1;
+}
+end

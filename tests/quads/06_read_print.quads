@@ -1,0 +1,6 @@
+(read, -, -, x)
+(print, "x =", -, -)
+(print, x, -, -)
+(print, "doble:", -, -)
+(*, x, 2, t1)
+(print, t1, -, -)

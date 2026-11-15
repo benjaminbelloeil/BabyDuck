@@ -1,0 +1,5 @@
+program p;
+var x : int;
+void f() { print(1); }
+main { x = f() + 1; }
+end

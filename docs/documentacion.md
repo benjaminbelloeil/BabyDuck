@@ -404,3 +404,367 @@ tests/semantic/01_dup_global.bd: Semantic error at line 3: variable 'x' already 
 ```
 
 Resultado: todas las pruebas pasan (OK).
+
+---
+
+# Baby_Duck: Generación de cuádruplos (Entrega 3)
+
+Alcance de esta entrega: expresiones aritméticas y relacionales, y los estatutos
+lineales (asignación, `read`, `print`). Los estatutos `if` / `while` (saltos con
+`GOTOF` / `GOTO`) y las funciones (`ERA`, `PARAM`, `GOSUB`) quedan para las
+siguientes entregas: por ahora sus expresiones sí generan cuádruplos, pero el
+resultado solo se valida y se descarta (Q15, Q16).
+
+Archivos: `src/quadruples.py` (estructuras) y `src/parser.py` (puntos neurálgicos).
+
+## 9. Estructuras de datos
+
+### 9.1 Cuádruplo (`Quadruple`)
+
+Una instrucción con a lo más una operación: `(operador, izquierdo, derecho, resultado)`.
+
+- Es una **clase** y no una tupla, porque en la Entrega 4 hay que modificar el
+  resultado de un cuádruplo ya generado (rellenar el destino de un `GOTOF`).
+- Una casilla vacía se guarda como `None` y se imprime como `-`.
+  Ejemplos: `(=, t1, -, x)`, `(print, x, -, -)`, `(read, -, -, x)`.
+- Por ahora las casillas guardan nombres (`'a'`, `'t1'`) y constantes (`5`, `2.5`).
+  En una entrega posterior guardarán direcciones virtuales; la clase no cambia.
+
+### 9.2 Pila (`Stack`)
+
+Estructura LIFO (el último que entra es el primero que sale), guardada en una
+lista de Python cuyo final es el tope.
+
+| Operación | Qué hace |
+|-----------|----------|
+| `push(x)` | Pone `x` en el tope |
+| `pop()` | Quita y regresa el tope |
+| `top()` | Regresa el tope sin quitarlo |
+| `is_empty()`, `len()` | Consultan si hay elementos |
+
+`pop()` y `top()` sobre una pila vacía lanzan un error con mensaje claro: eso solo
+pasa si un punto neurálgico está mal colocado.
+
+Se usan **tres pilas**, todas de la misma clase:
+
+| Pila | Guarda | Ejemplo |
+|------|--------|---------|
+| `POper` | Operadores pendientes y el fondo falso `(` | `+`, `*`, `(` |
+| `PilaO` | Operandos: variables, constantes, temporales | `a`, `5`, `t1` |
+| `PTypes` | El tipo de cada operando de `PilaO` (siempre del mismo tamaño) | `int`, `float`, `bool` |
+
+### 9.3 Fila de cuádruplos (`Queue`)
+
+Guarda los cuádruplos **en el orden en que se generan**, que es el orden en que la
+máquina virtual los ejecutará (FIFO: el primero generado es el primero ejecutado).
+
+| Operación | Qué hace |
+|-----------|----------|
+| `append(quad)` | Agrega un cuádruplo al final |
+| `next_index()` | Número que tendrá el siguiente cuádruplo (para los saltos de la Entrega 4) |
+| `fila[i]` | Lee (o modifica) el cuádruplo `i` |
+| `for q in fila`, `len()` | Recorrerla e imprimirla |
+
+- La numeración empieza en **0**.
+- Nunca se le quitan cuádruplos: la fila solo crece.
+- Permite acceso por índice porque en la Entrega 4 hay que regresar a rellenar
+  saltos, y la máquina virtual podrá saltar hacia atrás (ciclos).
+
+### 9.4 Generador (`QuadGenerator`)
+
+Un objeto que contiene las tres pilas, la fila y el contador de temporales.
+`parse()` crea uno nuevo para cada programa (pilas vacías, temporales desde `t1`).
+
+| Método | Qué hace |
+|--------|----------|
+| `new_temp()` | Regresa `t1`, `t2`, ... |
+| `generate_binary(line)` | Saca operando derecho y su tipo, operando izquierdo y su tipo, y el operador; consulta el cubo semántico; si es `error` lanza `SemanticError`; si no, crea un temporal, agrega el cuádruplo y mete el temporal y su tipo a las pilas |
+| `pop_condition(line)` | Saca la condición de un `if` / `while` y verifica que sea `bool` |
+| `check_empty(line)` | Verifica que las tres pilas estén vacías al terminar un estatuto; si no, indica cuál pila y qué contiene |
+
+El derecho se saca primero porque está en el tope; por eso `a - b` genera
+`(-, a, b, t1)` y no `(-, b, a, t1)`.
+
+### 9.5 ¿Por qué pilas y por qué una fila?
+
+Hacen trabajos distintos:
+
+- **Las pilas son el área de trabajo.** Mientras se lee `a + b * c`, el `+` no puede
+  generarse hasta saber si después viene algo de mayor prioridad. Las pilas guardan
+  lo pendiente. Al terminar cada estatuto quedan vacías.
+- **La fila es el resultado.** Es el programa traducido.
+- Si los cuádruplos se guardaran en una pila, la máquina virtual los ejecutaría al
+  revés: `(=, t2, -, a)` antes de que exista `t2`.
+
+### 9.6 Traza: `a = b + c * d;`
+
+| Paso | Se lee / se reduce | POper | PilaO | PTypes | Cuádruplo generado |
+|------|--------------------|-------|-------|--------|--------------------|
+| 1 | `b` (Q1) | | b | int | |
+| 2 | fin de factor y término (Q5, Q4): `POper` vacía | | b | int | |
+| 3 | `+` (Q2) | + | b | int | |
+| 4 | `c` (Q1); Q5: el tope es `+`, no genera | + | b c | int int | |
+| 5 | `*` (Q3) | + * | b c | int int | |
+| 6 | `d` (Q1) | + * | b c d | int int int | |
+| 7 | fin de factor (Q5): tope `*` | + | b t1 | int int | 0. `(*, c, d, t1)` |
+| 8 | fin de término (Q4): tope `+` | | t2 | int | 1. `(+, b, t1, t2)` |
+| 9 | `;` cierra la asignación (Q10) | | | | 2. `(=, t2, -, a)` |
+
+Al final las tres pilas quedan vacías y la fila tiene el programa.
+
+## 10. Diagramas de BabyDuck con sus puntos neurálgicos
+
+Diagramas de todo el lenguaje (imágenes en `docs/diagramas/`).
+
+- En **azul**, NP1 a NP7: puntos de la Entrega 2 (directorio de funciones y
+  tablas de variables).
+- En **rojo**, Q1 a Q17: puntos de la Entrega 3 (cuádruplos).
+
+En `src/parser.py` cada regla tiene un comentario con el mismo número. La
+descripción de cada punto está en las tablas al final de esta sección.
+
+**PROGRAMA**
+
+![PROGRAMA](diagramas/programa.png)
+
+**VARS**
+
+![VARS](diagramas/vars.png)
+
+**TIPO**
+
+![TIPO](diagramas/tipo.png)
+
+**FUNCS**
+
+![FUNCS](diagramas/funcs.png)
+
+**CUERPO**
+
+![CUERPO](diagramas/cuerpo.png)
+
+**ESTATUTO**
+
+![ESTATUTO](diagramas/estatuto.png)
+
+**EXPRESION**
+
+![EXPRESION](diagramas/expresion.png)
+
+**EXP**
+
+![EXP](diagramas/exp.png)
+
+**TERMINO**
+
+![TERMINO](diagramas/termino.png)
+
+**FACTOR**
+
+![FACTOR](diagramas/factor.png)
+
+**CTE**
+
+![CTE](diagramas/cte.png)
+
+**LLAMADA** (dentro de una expresión) y como estatuto
+
+![LLAMADA](diagramas/llamada.png)
+
+![ESTATUTO LLAMADA](diagramas/estatuto_llamada.png)
+
+**ASIGNA**
+
+![ASIGNA](diagramas/asigna.png)
+
+**LEE**
+
+![LEE](diagramas/lee.png)
+
+**IMPRIME**
+
+![IMPRIME](diagramas/imprime.png)
+
+**CONDICION**, **CICLO** y **REGRESA** (solo validan y descartan su expresión en
+esta entrega)
+
+![CONDICION](diagramas/condicion.png)
+
+![CICLO](diagramas/ciclo.png)
+
+![REGRESA](diagramas/regresa.png)
+
+**Puntos de la Entrega 2** (detalle en la sección 7):
+
+| Punto | Regla en `parser.py` | Acción |
+|-------|----------------------|--------|
+| NP1 | `program_header` | Crea el directorio de funciones y la entrada del programa (alcance global) |
+| NP2 | `decl` | Inserta cada variable declarada, con su tipo, en la tabla del alcance actual |
+| NP3 | `func_header` | Inserta la función con su tipo de retorno; se vuelve el alcance actual |
+| NP4 | `params` | Inserta los parámetros en la tabla de la función y guarda sus tipos en orden |
+| NP5 | `funcs` | Al cerrar la función, el alcance vuelve a ser el global |
+| NP6 | `read`, `assign`, `factor` | Verifica que la variable usada esté declarada (local o global) |
+| NP7 | `call` | Verifica que la función exista y reciba tantos argumentos como parámetros |
+
+**Puntos de la Entrega 3:**
+
+| Punto | Regla en `parser.py` | Acción |
+|-------|----------------------|--------|
+| Q1 | `factor` (ID), `cte` | Mete el operando a `PilaO` y su tipo a `PTypes` (el de la variable sale de su tabla; el de la constante, de su token) |
+| Q2 | `add_op` | Mete `+` o `-` a `POper` |
+| Q3 | `mult_op` | Mete `*` o `/` a `POper` |
+| Q4 | `np_term` | Al terminar un término: si el tope de `POper` es `+` o `-`, genera el cuádruplo |
+| Q5 | `np_factor` | Al terminar un factor: si el tope de `POper` es `*` o `/`, genera el cuádruplo |
+| Q6 | `lparen` | Mete el fondo falso `(` a `POper` |
+| Q7 | `factor`, `call` | Al leer `)`, saca el fondo falso |
+| Q8 | `factor` (con signo) | `-5`: niega la constante en `PilaO`, sin cuádruplo. `-x`: genera `(*, x, -1, t)` |
+| Q9 | `rel_opt` | Mete el operador relacional a `POper` y genera el cuádruplo (resultado `bool`) |
+| Q10 | `assign` | Saca el valor y su tipo, valida `tipo_variable = tipo_valor` con el cubo y genera `(=, valor, -, variable)` |
+| Q11 | `print_item` | Por cada elemento genera `(print, elemento, -, -)`; una expresión se saca de las pilas, un string se usa directo |
+| Q12 | `read` | Genera `(read, -, -, variable)` |
+| Q13 | `call` | Saca los argumentos de las pilas y mete el nombre de la función con su tipo de retorno (temporal hasta la entrega de funciones) |
+| Q14 | `f_call` | Una llamada como estatuto: descarta el resultado que metió Q13 |
+| Q15 | `if_header`, `while_header` | Al leer `)`: saca la condición y verifica que sea `bool`. Aquí irá el `GOTOF` en la Entrega 4 |
+| Q16 | `return` | Saca el valor de retorno y lo descarta (el cuádruplo `RETURN` llega con las funciones) |
+| Q17 | `statement` | Al terminar cualquier estatuto, verifica que las tres pilas estén vacías |
+
+**Decisiones:**
+
+- **Asignación:** en clase el ID se mete a `PilaO` antes del `=`. Aquí no hace falta:
+  el parser es bottom-up y al reducir `assign` el nombre ya está en `p[1]`.
+- **Relacionales:** el operador se mete a `POper` y se genera de inmediato, para
+  reutilizar `generate_binary`.
+- **Menos unario:** `-x` se traduce como `x * -1`. Así se reutiliza
+  `generate_binary` y la máquina virtual no necesita un operador nuevo. Para una
+  constante (`-5`) el valor se conoce al compilar, así que se niega directamente.
+- **Llamadas:** su argumento es una expresión aparte; el fondo falso (Q6) evita que
+  use operadores de afuera (`a * doble(2)` no debe generar `a * 2`).
+- **Funciones `void` en expresiones:** su tipo es `void` y el cubo no tiene entradas
+  para `void`, así que `x = f() + 1;` da error semántico sin código extra.
+- **Condición de `if` / `while`:** `p_condition` se ejecuta hasta después del
+  cuerpo, así que la condición se separó en `if_header` / `while_header`, que se
+  reducen al leer `)`, antes del cuerpo. Así las pilas ya están vacías cuando Q17
+  revisa los estatutos del cuerpo.
+- **Números de línea:** `parse()` usa `tracking=True` para que PLY guarde también
+  la línea de los no terminales; sin eso, los errores dentro de una expresión
+  decían "line 0".
+- **Limitación:** la gramática solo permite signo antes de un ID o una constante,
+  no antes de un paréntesis (`-(a + b)` es error de sintaxis).
+
+## 11. El problema de la recursión derecha
+
+La gramática de la Entrega 1 era:
+
+```
+exp      : termino exp_list
+exp_list : + termino exp_list | - termino exp_list | ε
+```
+
+PLY ejecuta el código de una regla al reducirla, y `exp_list` es recursiva por la
+derecha: para `a - b - c` el `exp_list` más interno (el de `c`) se reduce
+**primero**. Generar los cuádruplos en `exp_list` daría `a - (b - c)`, que es
+incorrecto.
+
+Solución: igual que `program_header` en la Entrega 2, cada parte que debe ocurrir
+a tiempo se separa en una regla propia, que PLY reduce en el momento justo:
+
+```
+exp       : np_term exp_list
+exp_list  : add_op np_term exp_list | ε
+add_op    : + | -                      <- Q2: se reduce al leer el operador
+np_term   : termino                    <- Q4: se reduce al terminar cada término
+termino   : np_factor termino_list
+termino_list : mult_op np_factor termino_list | ε
+mult_op   : * | /                      <- Q3
+np_factor : factor                     <- Q5
+lparen    : (                          <- Q6
+```
+
+El mismo truco se usa para la condición de `if` / `while`:
+
+```
+condition    : if_header body | if_header body ELSE body
+if_header    : IF ( expresion )           <- Q15: antes del cuerpo
+cycle        : while_header body
+while_header : WHILE ( expresion )        <- Q15
+```
+
+Con esto `a - b - c` genera `(-, a, b, t1)` y luego `(-, t1, c, t2)`. La tabla LALR
+sigue con 0 conflictos.
+
+## 12. Test plan (Entrega 3)
+
+Ejecución: `python3 -m unittest -v tests/test_babyduck.py`
+Ver la fila de un programa: `python3 src/main.py tests/quads/09_full.bd --quads`
+
+- `tests/quads/`: cada `NN_nombre.bd` tiene su `NN_nombre.quads` con los cuádruplos
+  esperados, escritos a mano. La prueba compila el programa, compara la fila línea
+  por línea y verifica que las tres pilas terminen vacías.
+- `tests/semantic/16` a `21`: errores de tipo detectados con el cubo y condiciones
+  que no son `bool`.
+- Pruebas unitarias de `Quadruple`, `Stack` y `Queue`.
+
+| Archivo | Prueba | Esperado |
+|---------|--------|----------|
+| quads/01_precedence | `x = a + b * c - d;` | `*` antes que `+`, luego `-` |
+| quads/02_parentheses | `(a + b) * (c - d)`, `a * (b + c * d)` | Fondo falso |
+| quads/03_associativity | `a - b - c`, `a / b / c` | De izquierda a derecha |
+| quads/04_int_float | `f = i * 2.5 + 1;`, `f = i / 2;` | Tipos del cubo, `float = int` permitido |
+| quads/05_relational | `print(x > y + 1);` | Relacional después de la aritmética, tipo `bool` |
+| quads/06_read_print | `read(x); print("x =", x, ...)` | Un `print` por elemento, en orden |
+| quads/07_unary | `-a * b`, `-5 + a`, `a - -b` | `x * -1`; constante negada sin cuádruplo |
+| quads/08_calls | `doble(x) + 1`, `x * doble(x + 1)` | Argumentos aislados por el fondo falso |
+| quads/09_full | programa completo lineal | Ver salida abajo |
+| quads/10_control | `if` / `else`, `while`, `return` | Cuádruplos de sus expresiones; pilas vacías |
+| semantic/16_assign_float_to_int | `x = 2.5;` (x es int) | Error semántico |
+| semantic/17_bool_in_arithmetic | `x = (x > 1) + 2;` | Error semántico |
+| semantic/18_assign_bool | `x = x > 1;` | Error semántico |
+| semantic/19_void_in_expression | `x = f() + 1;` (f es void) | Error semántico |
+| semantic/20_if_not_bool | `if (x + 1) { ... }` | Error semántico: la condición debe ser `bool` |
+| semantic/21_while_not_bool | `while (x) { ... }` | Error semántico: la condición debe ser `bool` |
+
+Ejemplos de salida:
+
+```
+$ python3 src/main.py tests/quads/09_full.bd --quads
+tests/quads/09_full.bd: OK, program accepted
+#  op     left      right  result
+0  read   -         -      x
+1  *      x         2      t1
+2  +      t1        1      t2
+3  =      t2        -      y
+4  /      y         3.5    t3
+5  =      t3        -      z
+6  print  "result"  -      -
+7  print  z         -      -
+8  >      y         10     t4
+9  print  t4        -      -
+
+$ python3 src/main.py tests/quads/02_parentheses.bd --quads
+tests/quads/02_parentheses.bd: OK, program accepted
+#  op  left  right  result
+0  +   a     b      t1
+1  -   c     d      t2
+2  *   t1    t2     t3
+3  =   t3    -      x
+4  *   c     d      t4
+5  +   b     t4     t5
+6  *   a     t5     t6
+7  =   t6    -      y
+
+$ python3 src/main.py tests/quads/07_unary.bd --quads
+tests/quads/07_unary.bd: OK, program accepted
+#  op  left  right  result
+0  *   a     -1     t1
+1  *   t1    b      t2
+2  =   t2    -      x
+3  +   -5    a      t3
+4  =   t3    -      x
+5  *   b     -1     t4
+6  -   a     t4     t5
+7  =   t5    -      f
+8  =   -2.5  -      f
+
+$ python3 src/main.py tests/semantic/16_assign_float_to_int.bd
+tests/semantic/16_assign_float_to_int.bd: Semantic error at line 3: cannot assign type 'float' to variable 'x' of type 'int'.
+```

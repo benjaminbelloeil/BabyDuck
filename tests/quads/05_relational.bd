@@ -1,0 +1,8 @@
+program p05;
+var x, y : int;
+    z : float;
+main {
+  print(x > y + 1);
+  print(x * 2 == y, z <= 1.5);
+}
+end

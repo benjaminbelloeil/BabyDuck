@@ -1,0 +1,10 @@
+program p10;
+var x : int;
+int f(a : int) {
+  return a + 1;
+}
+main {
+  if (x > 0) { x = x - 1; } else { x = 0; }
+  while (x < 10) { x = x + 1; }
+}
+end

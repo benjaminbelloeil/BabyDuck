@@ -8,6 +8,7 @@
     python3 src/main.py tests/valid/10_full.bd            # parse a file
     python3 src/main.py tests/valid/10_full.bd --tokens   # token stream only
     python3 src/main.py tests/valid/10_full.bd --symbols  # also print the function directory
+    python3 src/main.py tests/quads/09_full.bd --quads    # also print the quadruple queue
     python3 -m unittest -v tests/test_babyduck.py         # full test plan
 
 ## Structure
@@ -15,10 +16,12 @@
     src/parser.py     parser: grammar rules + neuralgic points     (done)
     src/semantic_cube.py  semantic cube (type of each operation)   (done)
     src/symbols.py    function directory + variable tables         (done)
+    src/quadruples.py Quadruple, Stack, Queue, QuadGenerator       (done)
     src/main.py       command line entry point
     tests/valid/      programs that must be accepted
     tests/invalid/    programs that must be rejected (lexical/syntax)
     tests/semantic/   programs that must give a semantic error
+    tests/quads/      programs + their expected quads (.quads)
     tests/test_babyduck.py   test runner
     docs/notes.md     cheat sheet: how the compiler works
     docs/documentacion.md   documentation for the submission

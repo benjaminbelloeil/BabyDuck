@@ -6,7 +6,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, '..', 'src'))
 
 from lexer import tokenize  # noqa: E402
+import parser               # noqa: E402  (to read parser.generator after parse())
 from parser import parse    # noqa: E402
+from quadruples import Quadruple, Stack, Queue  # noqa: E402
 from semantic_cube import result_type, unary_type, INT, FLOAT, BOOL, ERROR  # noqa: E402
 from symbols import FunctionDirectory, SemanticError  # noqa: E402
 
@@ -135,6 +137,70 @@ class TestSymbols(unittest.TestCase):
     def test_error_reports_line(self):
         with self.assertRaisesRegex(SemanticError, 'line 3.*line 2'):
             parse('program p;\nvar x : int;\n    x : float;\nmain { } end')
+
+
+class TestQuadStructures(unittest.TestCase):
+    def test_quadruple_str(self):
+        self.assertEqual(str(Quadruple('+', 'a', 'b', 't1')), '(+, a, b, t1)')
+        self.assertEqual(str(Quadruple('=', 't1', None, 'x')), '(=, t1, -, x)')
+        self.assertEqual(str(Quadruple('-', 0, 5, 't2')), '(-, 0, 5, t2)')
+
+    def test_stack_is_lifo(self):
+        s = Stack()
+        s.push('a')
+        s.push('b')
+        self.assertEqual(s.top(), 'b')
+        self.assertEqual(s.pop(), 'b')
+        self.assertEqual(s.pop(), 'a')
+        self.assertTrue(s.is_empty())
+
+    def test_empty_stack_raises(self):
+        with self.assertRaises(IndexError):
+            Stack().pop()
+        with self.assertRaises(IndexError):
+            Stack().top()
+
+    def test_queue_keeps_order_and_allows_filling(self):
+        q = Queue()
+        q.append(Quadruple('*', 'b', 'c', 't1'))
+        q.append(Quadruple('+', 'a', 't1', 't2'))
+        self.assertEqual([str(x) for x in q], ['(*, b, c, t1)', '(+, a, t1, t2)'])
+        self.assertEqual(q.next_index(), 2)
+        q[0].result = 't9'          # Entrega 4 fills jump targets like this
+        self.assertEqual(str(q[0]), '(*, b, c, t9)')
+
+
+class TestQuads(unittest.TestCase):
+    """tests/quads/NN_name.bd is compiled and its queue is compared, line by
+    line, with tests/quads/NN_name.quads (written by hand)."""
+
+    def test_quad_programs(self):
+        for path in files('quads'):
+            with self.subTest(file=os.path.basename(path)):
+                parse(read(path))
+                gen = parser.generator
+                expected = read(path[:-3] + '.quads').split('\n')
+                expected = [line for line in expected if line.strip()]
+                self.assertEqual([str(q) for q in gen.quad_queue], expected)
+                # Every statement must consume what it pushed.
+                for name in ('POper', 'PilaO', 'PTypes'):
+                    stack = getattr(gen, name)
+                    self.assertTrue(stack.is_empty(), f'{name} not empty: {stack}')
+
+    def test_fresh_generator_per_parse(self):
+        parse('program a; var x : int; main { x = x + 1; } end')
+        parse('program b; var y : int; main { y = y * 2; } end')
+        self.assertEqual([str(q) for q in parser.generator.quad_queue],
+                         ['(*, y, 2, t1)', '(=, t1, -, y)'])
+
+    def test_type_error_reports_operator(self):
+        with self.assertRaisesRegex(SemanticError, "'\\+'.*bool.*int"):
+            parse('program p; var x : int; main { x = (x > 1) + 2; } end')
+
+    def test_errors_inside_expressions_report_the_real_line(self):
+        # Without tracking=True in parse() this said "line 0".
+        with self.assertRaisesRegex(SemanticError, 'line 4'):
+            parse('program p;\nvar x : int;\nmain {\n x = (x > 1) + 2;\n}\nend')
 
 
 if __name__ == '__main__':

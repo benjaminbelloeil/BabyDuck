@@ -1,0 +1,7 @@
+program p06;
+var x : int;
+main {
+  read(x);
+  print("x =", x, "doble:", x * 2);
+}
+end

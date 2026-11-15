@@ -1,0 +1,7 @@
+program p02;
+var a, b, c, d, x, y : int;
+main {
+  x = (a + b) * (c - d);
+  y = a * (b + c * d);
+}
+end

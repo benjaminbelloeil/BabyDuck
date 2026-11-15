@@ -1,0 +1,10 @@
+program demo;
+var x, y : int;
+    z : float;
+main {
+  read(x);
+  y = x * 2 + 1;
+  z = y / 3.5;
+  print("result", z, y > 10);
+}
+end

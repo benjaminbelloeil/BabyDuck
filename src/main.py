@@ -2,11 +2,24 @@
     python3 src/main.py <file.bd>            parse a file
     python3 src/main.py <file.bd> --tokens   only print the token stream
     python3 src/main.py <file.bd> --symbols  also print the function directory
+    python3 src/main.py <file.bd> --quads    also print the quadruple queue
 """
 import sys
 from lexer import tokenize
+import parser
 from parser import parse
 from symbols import SemanticError
+
+
+def quads_table(queue):
+    """The quad queue as a numbered table (0-based, like the queue)."""
+    rows = [['#', 'op', 'left', 'right', 'result']]
+    for i, q in enumerate(queue):
+        cells = [q.op, q.left, q.right, q.result]
+        rows.append([str(i)] + ['-' if c is None else str(c) for c in cells])
+    widths = [max(len(row[col]) for row in rows) for col in range(5)]
+    return '\n'.join('  '.join(cell.ljust(w) for cell, w in zip(row, widths)).rstrip()
+                     for row in rows)
 
 
 def main():
@@ -29,6 +42,8 @@ def main():
         print(f"{path}: OK, program accepted")
         if '--symbols' in sys.argv:
             print(directory.dump())
+        if '--quads' in sys.argv:
+            print(quads_table(parser.generator.quad_queue))
     except (SyntaxError, SemanticError) as e:
         print(f"{path}: {e}")
         sys.exit(1)

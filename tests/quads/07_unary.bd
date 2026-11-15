@@ -1,0 +1,10 @@
+program p07;
+var a, b, x : int;
+    f : float;
+main {
+  x = -a * b;
+  x = -5 + a;
+  f = a - -b;
+  f = -2.5;
+}
+end

@@ -1,0 +1,14 @@
+program p08;
+var x, y : int;
+int doble(n : int) {
+  return n * 2;
+}
+void saluda() {
+  print("hola");
+}
+main {
+  y = doble(x) + 1;
+  saluda();
+  y = x * doble(x + 1);
+}
+end
